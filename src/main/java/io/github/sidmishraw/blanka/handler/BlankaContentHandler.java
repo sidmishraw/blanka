@@ -9,10 +9,7 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 /**
  * The content handler for Blanka, it is used for custom PDF content processing.
@@ -24,17 +21,21 @@ import java.util.Set;
 @Data
 public class BlankaContentHandler implements ContentHandler {
 
+    public static final String REMOVE_PUNCTUATION = "remove-punctuation";
+
     /**
      * Creates a new instance of the {@link BlankaContentHandler}.
      *
      * @param textModel the text model.
      * @return the content handler.
      */
-    public static BlankaContentHandler with(TextModel textModel) {
+    public static BlankaContentHandler with(TextModel textModel, String... flags) {
 
         BlankaContentHandler blankaContentHandler = new BlankaContentHandler();
 
         blankaContentHandler.setTextModel(textModel);
+
+        blankaContentHandler.addFlags(flags);
 
         return blankaContentHandler;
     }
@@ -119,6 +120,22 @@ public class BlankaContentHandler implements ContentHandler {
      */
     private final StringBuffer buffer = new StringBuffer();
 
+    /**
+     * The processing flags.
+     */
+    private final List<String> flags = new ArrayList<>();
+
+
+    /**
+     * Adds the processing flags to the processor.
+     *
+     * @param flags the processing flags.
+     */
+    public void addFlags(String... flags) {
+
+        Optional.ofNullable(flags).ifPresent(fs -> Collections.addAll(this.flags, fs));
+    }
+
 
     @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
@@ -145,9 +162,15 @@ public class BlankaContentHandler implements ContentHandler {
             if (Character.isWhitespace(ch[i])) {
             // @formatter:on
 
-                // cleanse the text of preceeding and trailing comma, semi-colon, colon, and periods recursively
-                //
-                String word = rcleanseText(this.buffer.toString());
+                String word = this.buffer.toString();
+
+                if (this.flags.contains(REMOVE_PUNCTUATION)) {
+
+                    // cleanse the text of preceeding and trailing comma, semi-colon, colon, and periods recursively
+                    //
+
+                    word = rcleanseText(this.buffer.toString());
+                }
 
                 word = Strings.trimToEmpty(word);
 
@@ -235,4 +258,6 @@ public class BlankaContentHandler implements ContentHandler {
         // NOP
         //
     }
+
+
 }

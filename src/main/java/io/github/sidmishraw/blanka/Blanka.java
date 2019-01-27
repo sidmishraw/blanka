@@ -32,18 +32,32 @@ public class Blanka {
 
     public static void main(String[] args) {
 
-        if (args.length != 2) {
+        if (args.length < 2) {
 
             // Error if the source PDF path is not given.
             //
             System.out.println("Please enter the source PDF directory path!");
-            System.out.println("blanka <the-source-pdf-path> <the-output-directory-path>");
+            System.out.println("blanka <the-source-pdf-path> <the-output-directory-path> [flags]..]");
+            System.out.println("By default all flags are off.");
+            System.out.println("Current supported flags: ");
+            System.out.println("  " + BlankaContentHandler.REMOVE_PUNCTUATION + "- if you want to remove the punctuations with the words: comma, semi-colon, period, etc.");
+            System.out.println();
             System.exit(1);
         }
 
         try {
 
-            processSourcePDFs(args[0], args[1]);
+            List<String> flags = new ArrayList<>();
+
+            if (args.length > 2) {
+
+                for (int i = 2; i < args.length; i++) {
+
+                    flags.add(args[i]);
+                }
+            }
+
+            processSourcePDFs(args[0], args[1], flags.toArray(new String[0]));
         } catch (IOException e) {
 
             System.out.println("Failed to process the PDFs - ERR-001");
@@ -57,7 +71,15 @@ public class Blanka {
         }
     }
 
-    private static void processSourcePDFs(String strSourcePDFPath, String strOutputJSONDirPath) throws IOException {
+    /**
+     * Processes the source PDFs given the input and output paths, and the flags for processing.
+     *
+     * @param strSourcePDFPath     the source path
+     * @param strOutputJSONDirPath the destination path
+     * @param flags                the list of processing paths.
+     * @throws IOException if anything goes wrong while processing the PDFs.
+     */
+    private static void processSourcePDFs(String strSourcePDFPath, String strOutputJSONDirPath, String... flags) throws IOException {
 
         Path sourcePDFPath = Path.of(strSourcePDFPath);
 
@@ -65,17 +87,26 @@ public class Blanka {
 
         if (Files.isDirectory(sourcePDFPath)) {
 
-            processPDFSourceDirectory(sourcePDFPath, outputJSONDirPath);
+            processPDFSourceDirectory(sourcePDFPath, outputJSONDirPath, flags);
         } else if (Files.isRegularFile(sourcePDFPath)) {
 
-            processSourcePDF(sourcePDFPath, outputJSONDirPath);
+            processSourcePDF(sourcePDFPath, outputJSONDirPath, flags);
         } else {
 
             System.out.println("Not a valid file -- do nothing!");
         }
     }
 
-    private static void processSourcePDF(Path sourcePDfFilePath, Path outputJSONDirPath) throws IOException {
+
+    /**
+     * Processes a PDF file given its file path, the destination path, and processing flags.
+     *
+     * @param sourcePDfFilePath the source PDF path
+     * @param outputJSONDirPath the destination path
+     * @param flags             the list of processing flags
+     * @throws IOException if processing goes wrong.
+     */
+    private static void processSourcePDF(Path sourcePDfFilePath, Path outputJSONDirPath, String... flags) throws IOException {
 
         File sourcePDF = sourcePDfFilePath.toFile();
 
@@ -108,7 +139,9 @@ public class Blanka {
 
             TextModel textModel = TextModel.create(pdfFileName, new ArrayList<>());
 
-            ContentHandler xhtmlContentHandler = new XHTMLContentHandler(BlankaContentHandler.with(textModel), metadata);
+            // the content handler is used for parsing the PDF and converting to blanka's required output JSON format.
+            //
+            ContentHandler xhtmlContentHandler = new XHTMLContentHandler(BlankaContentHandler.with(textModel, flags), metadata);
 
             parser.parse(iostream, xhtmlContentHandler, metadata, context);
 
@@ -125,7 +158,16 @@ public class Blanka {
         }
     }
 
-    private static void processPDFSourceDirectory(Path sourcePDFDirectoryPath, Path outputJSONDirPath) throws IOException {
+
+    /**
+     * Processes the source PDFs given their directory, output directory, and processing flags.
+     *
+     * @param sourcePDFDirectoryPath the input source PDF directory
+     * @param outputJSONDirPath      the output JSON directory path
+     * @param flags                  the processing flags
+     * @throws IOException if the processing fails.
+     */
+    private static void processPDFSourceDirectory(Path sourcePDFDirectoryPath, Path outputJSONDirPath, String... flags) throws IOException {
 
         // @formatter:off
         List<Optional<IOException>> exs =
@@ -135,7 +177,7 @@ public class Blanka {
 
                             try {
 
-                                processSourcePDF(f, outputJSONDirPath);
+                                processSourcePDF(f, outputJSONDirPath, flags);
 
                                 return Optional.<IOException>empty();
                             } catch (IOException e) {
